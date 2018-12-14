@@ -1,0 +1,8 @@
+[package]
+name = "advent_2018"
+version = "0.1.0"
+authors = ["Tom Bulsink <nospam@sorrowed.nl>"]
+
+[dependencies]
+time = "0.1.40"
+regex = "1.1.0"

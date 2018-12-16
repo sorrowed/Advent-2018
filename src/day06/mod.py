@@ -38,7 +38,7 @@ def print_field(fld, x_min, x_max, y_min, y_max):
 def first():
     x_min, x_max, y_min, y_max = make_limits()
 
-    # So i cant print something on a location that is not owned by anyone
+    # So i can print something on a location that is not owned by anyone
     no_coordinate = Coordinate(x=-1, y=-1, id='.')
 
     # Register all unique owners

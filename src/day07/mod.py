@@ -187,13 +187,11 @@ def first():
     nodes.sort(key=lambda n: n.id)
 
     order = 1
-    complete = False
-    while not complete:
-        complete = True
+    while any(node.state != Node.COMPLETE for node in nodes):
         for node in nodes:
             if not node.is_done() and node.parents_are_done():
-                complete = False
                 node.order = order
+                node.state = Node.COMPLETE
                 order += 1
                 break  # Restart from the top
 

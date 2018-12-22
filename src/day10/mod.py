@@ -162,22 +162,24 @@ INPUT = ["position=<-42346,  10806> velocity=< 4, -1>", "position=<-31708, -2110
          "position=< 32147,  53368> velocity=<-3, -5>", "position=<-31708, -21106> velocity=< 3,  2>",
          "position=< 53409,  32093> velocity=<-5, -3>", "position=< 21492,  42728> velocity=<-2, -4>"]
 
-INPUT = ["position=< 9,  1> velocity=< 0,  2>", "position=< 7,  0> velocity=<-1,  0>",
-         "position=< 3, -2> velocity=<-1,  1>", "position=< 6, 10> velocity=<-2, -1>",
-         "position=< 2, -4> velocity=< 2,  2>", "position=<-6, 10> velocity=< 2, -2>",
-         "position=< 1,  8> velocity=< 1, -1>", "position=< 1,  7> velocity=< 1,  0>",
-         "position=<-3, 11> velocity=< 1, -2>", "position=< 7,  6> velocity=<-1, -1>",
-         "position=<-2,  3> velocity=< 1,  0>", "position=<-4,  3> velocity=< 2,  0>",
-         "position=<10, -3> velocity=<-1,  1>", "position=< 5, 11> velocity=< 1, -2>",
-         "position=< 4,  7> velocity=< 0, -1>", "position=< 8, -2> velocity=< 0,  1>",
-         "position=<15,  0> velocity=<-2,  0>", "position=< 1,  6> velocity=< 1,  0>",
-         "position=< 8,  9> velocity=< 0, -1>", "position=< 3,  3> velocity=<-1,  1>",
-         "position=< 0,  5> velocity=< 0, -1>", "position=<-2,  2> velocity=< 2,  0>",
-         "position=< 5, -2> velocity=< 1,  2>", "position=< 1,  4> velocity=< 2,  1>",
-         "position=<-2,  7> velocity=< 2, -2>", "position=< 3,  6> velocity=<-1, -1>",
-         "position=< 5,  0> velocity=< 1,  0>", "position=<-6,  0> velocity=< 2,  0>",
-         "position=< 5,  9> velocity=< 1, -2>", "position=<14,  7> velocity=<-2,  0>",
-         "position=<-3,  6> velocity=< 2, -1>"]
+
+#
+# INPUT = ["position=< 9,  1> velocity=< 0,  2>", "position=< 7,  0> velocity=<-1,  0>",
+#          "position=< 3, -2> velocity=<-1,  1>", "position=< 6, 10> velocity=<-2, -1>",
+#          "position=< 2, -4> velocity=< 2,  2>", "position=<-6, 10> velocity=< 2, -2>",
+#          "position=< 1,  8> velocity=< 1, -1>", "position=< 1,  7> velocity=< 1,  0>",
+#          "position=<-3, 11> velocity=< 1, -2>", "position=< 7,  6> velocity=<-1, -1>",
+#          "position=<-2,  3> velocity=< 1,  0>", "position=<-4,  3> velocity=< 2,  0>",
+#          "position=<10, -3> velocity=<-1,  1>", "position=< 5, 11> velocity=< 1, -2>",
+#          "position=< 4,  7> velocity=< 0, -1>", "position=< 8, -2> velocity=< 0,  1>",
+#          "position=<15,  0> velocity=<-2,  0>", "position=< 1,  6> velocity=< 1,  0>",
+#          "position=< 8,  9> velocity=< 0, -1>", "position=< 3,  3> velocity=<-1,  1>",
+#          "position=< 0,  5> velocity=< 0, -1>", "position=<-2,  2> velocity=< 2,  0>",
+#          "position=< 5, -2> velocity=< 1,  2>", "position=< 1,  4> velocity=< 2,  1>",
+#          "position=<-2,  7> velocity=< 2, -2>", "position=< 3,  6> velocity=<-1, -1>",
+#          "position=< 5,  0> velocity=< 1,  0>", "position=<-6,  0> velocity=< 2,  0>",
+#          "position=< 5,  9> velocity=< 1, -2>", "position=<14,  7> velocity=<-2,  0>",
+#          "position=<-3,  6> velocity=< 2, -1>"]
 
 
 class Point:
@@ -185,8 +187,11 @@ class Point:
         self.pos = pos
         self.vel = vel
 
-    def move(self):
+    def forward(self):
         self.pos = (self.x() + self.vel[0], self.y() + self.vel[1])
+
+    def reverse(self):
+        self.pos = (self.x() - self.vel[0], self.y() - self.vel[1])
 
     def x(self):
         return self.pos[0]
@@ -213,34 +218,49 @@ def first():
 
     size_x, size_y = None, None
 
+    # Repeat while bounding box is converging
     while True:
         for p in points:
-            p.move()
+            p.forward()
 
-        x_min = min(points, key=lambda p: p.x()).x()
-        x_max = max(points, key=lambda p: p.x()).x()
-        y_min = min(points, key=lambda p: p.y()).y()
-        y_max = max(points, key=lambda p: p.y()).y()
+        top_left, bottom_right = bounding_box(points)
 
-        dx, dy = x_max - x_min, y_max - y_min
+        dx, dy = bottom_right[0] - top_left[0], bottom_right[1] - top_left[1]
         if (size_x is None or dx < size_x) and (size_y is None or dy < size_y):
             size_x, size_y = dx, dy
         else:
             break
 
+    # Reverse one iteration because we did one too many (bounding box is no longer converging)
+    for p in points:
+        p.reverse()
+
+    return print_points(points, top_left, bottom_right)
+
+
+def bounding_box(points):
+    x_min = min(points, key=lambda p: p.x()).x()
+    x_max = max(points, key=lambda p: p.x()).x()
+    y_min = min(points, key=lambda p: p.y()).y()
+    y_max = max(points, key=lambda p: p.y()).y()
+
+    return (x_min, y_min), (x_max, y_max)
+
+
+def print_points(points, top_left, bottom_right):
     field = set()
     for p in points:
         field.add(p.key())
 
-    for y in range(y_min, y_max + 1):
-        for x in range(x_min, x_max + 1):
+    s = ""
+    for y in range(top_left[1], bottom_right[1] + 1):
+        for x in range(top_left[0], bottom_right[0] + 1):
             if (y << 32) | x in field:
-                sys.stdout.write("#")
+                s += "#"
             else:
-                sys.stdout.write(".")
-        print("")
-
-    return 0
+                s += "."
+        s += "\n"
+    return s
 
 
 def second():
@@ -248,5 +268,5 @@ def second():
 
 
 if __name__ == "__main__":
-    print("Meta sum : {0}".format(first()))
+    print("Text :\n{0}".format(first()))
     print("Meta sum : {0}".format(second()))

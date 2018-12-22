@@ -213,13 +213,14 @@ def parse_point(src):
     return Point((int(matches.group(1)), int(matches.group(2))), (int(matches.group(3)), int(matches.group(4))))
 
 
-def first():
+def converge():
     points = [parse_point(line) for line in INPUT]
 
     size_x, size_y = None, None
-
+    iterations = 0
     # Repeat while bounding box is converging
     while True:
+        iterations += 1
         for p in points:
             p.forward()
 
@@ -234,8 +235,9 @@ def first():
     # Reverse one iteration because we did one too many (bounding box is no longer converging)
     for p in points:
         p.reverse()
+    iterations -= 1
 
-    return print_points(points, top_left, bottom_right)
+    return print_points(points, top_left, bottom_right), iterations
 
 
 def bounding_box(points):
@@ -263,10 +265,8 @@ def print_points(points, top_left, bottom_right):
     return s
 
 
-def second():
-    return 0
-
-
 if __name__ == "__main__":
-    print("Text :\n{0}".format(first()))
-    print("Meta sum : {0}".format(second()))
+    result = converge()
+
+    print("Text :\n{0}".format(result[0]))
+    print("Number of seconds : {0}".format(result[1]))

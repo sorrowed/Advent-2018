@@ -33,21 +33,7 @@ INPUT = ["##.#..########..##..#..##.....##..###.####.###.##.###...###.##..#.##..
          "..#.# => #"]
 
 
-# INPUT = ["#..#.#..##......###...###",
-#          "...## => #",
-#          "..#.. => #",
-#          ".#... => #",
-#          ".#.#. => #",
-#          ".#.## => #",
-#          ".##.. => #",
-#          ".#### => #",
-#          "#.#.# => #",
-#          "#.### => #",
-#          "##.#. => #",
-#          "##.## => #",
-#          "###.. => #",
-#          "###.# => #",
-#          "####. => #"]
+#
 
 
 class Generation:
@@ -75,9 +61,14 @@ def assure_leading_and_trailing_pots(state, offset):
 	"""
 
 	ix = state.find("#")
-	if ix != -1 and ix < 3:
-		state = "." * (3 - ix) + state
-		offset += (3 - ix)
+	if ix != -1:
+		if ix < 3:
+			state = "." * (3 - ix) + state
+			offset += (3 - ix)
+
+		if ix > 3:
+			state = "." * 3 + state.lstrip(".")
+			offset -= (ix - 3)
 
 	return state.rstrip(".") + "...", offset
 
@@ -108,14 +99,30 @@ def grow(state, generations, years):
 
 		state = next_state
 
-	# print("{0:02d} ({2}):  {1}".format(s + 1, state, offset))
+		print("{0:02d} ({2}):  {1}".format(s + 1, state, offset))
 
 	return state, offset
 
 
 def test():
-	state = INPUT[0]
-	generations = [Generation(s) for s in INPUT[1:]]
+	TEST_INPUT = ["#..#.#..##......###...###",
+	              "...## => #",
+	              "..#.. => #",
+	              ".#... => #",
+	              ".#.#. => #",
+	              ".#.## => #",
+	              ".##.. => #",
+	              ".#### => #",
+	              "#.#.# => #",
+	              "#.### => #",
+	              "##.#. => #",
+	              "##.## => #",
+	              "###.. => #",
+	              "###.# => #",
+	              "####. => #"]
+
+	state = TEST_INPUT[0]
+	generations = [Generation(s) for s in TEST_INPUT[1:]]
 
 	state, offset = grow(state, generations, 20)
 
@@ -147,7 +154,7 @@ def second():
 
 
 if __name__ == "__main__":
-	# test()
+	test()
 
 	print("Sum of plants after 20 generations: {0}".format(first()))
-	print("Sum of plants after 50 billion generations: {0}".format(second()))
+# print("Sum of plants after 50 billion generations: {0}".format(second()))

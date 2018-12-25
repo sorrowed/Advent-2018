@@ -32,71 +32,122 @@ INPUT = ["##.#..########..##..#..##.....##..###.####.###.##.###...###.##..#.##..
          "##.## => .",
          "..#.# => #"]
 
-INPUT = ["#..#.#..##......###...###",
-         "...## => #",
-         "..#.. => #",
-         ".#... => #",
-         ".#.#. => #",
-         ".#.## => #",
-         ".##.. => #",
-         ".#### => #",
-         "#.#.# => #",
-         "#.### => #",
-         "##.#. => #",
-         "##.## => #",
-         "###.. => #",
-         "###.# => #",
-         "####. => #"]
+
+# INPUT = ["#..#.#..##......###...###",
+#          "...## => #",
+#          "..#.. => #",
+#          ".#... => #",
+#          ".#.#. => #",
+#          ".#.## => #",
+#          ".##.. => #",
+#          ".#### => #",
+#          "#.#.# => #",
+#          "#.### => #",
+#          "##.#. => #",
+#          "##.## => #",
+#          "###.. => #",
+#          "###.# => #",
+#          "####. => #"]
 
 
-class Plant:
+class Generation:
 	def __init__(self, s):
 		self.match = s[0:5]
 		self.plant = s[9]
 
 	def apply(self, next_state, current_state):
-		# Match self.match at start of current_state (assume infinite "." at start) when self.match starts with "." or ".."
-		# Match self.match in between
-		# Match self.match at end of current_state (assume infinite "." at end) when self.match ends with "." or ".."
-
-		prepend = []
-		append = []
-
-		state_str = ".." + "".join(current_state) + ".."
-		o = 0;
+		# Assume next_state and current_state have enough leading and trailing empty pots to match at begin and end
+		o = 0
+		next_state = list(next_state)
 		while o != -1:
-			o = state_str.find(self.match, o)
+			o = current_state.find(self.match, o)
 			if o != -1:
-				if o < 2:
-					prepend.append(self.plant)
-				elif o >= len(current_state) - 2:
-					append.append(self.plant)
-				else:
-					next_state[o + 2] = self.plant
+				next_state[o + 2] = self.plant
 				o += 1
 
-		return prepend + next_state + append
+		return "".join(next_state)
+
+
+def assure_leading_and_trailing_pots(state, offset):
+	"""
+	Make sure there are enough empty pots at begin and end to match
+	:param offset:  Index of pot #0
+	"""
+
+	ix = state.find("#")
+	if ix != -1 and ix < 3:
+		state = "." * (3 - ix) + state
+		offset += (3 - ix)
+
+	return state.rstrip(".") + "...", offset
+
+
+def sum_plants(state, offset):
+	r = 0
+
+	ix = 0
+	while ix != -1:
+		ix = state.find("#", ix)
+		if ix != -1:
+			r += (ix - offset)
+			ix += 1
+
+	return r
+
+
+def grow(state, generations, years):
+	offset = 0
+	for s in range(years):
+
+		state, offset = assure_leading_and_trailing_pots(state, offset)
+
+		next_state = "." * len(state)
+
+		for g in generations:
+			next_state = g.apply(next_state, state)
+
+		state = next_state
+
+	# print("{0:02d} ({2}):  {1}".format(s + 1, state, offset))
+
+	return state, offset
 
 
 def test():
-	current_state = list(INPUT[0])
+	state = INPUT[0]
+	generations = [Generation(s) for s in INPUT[1:]]
 
-	plants = [Plant(s) for s in INPUT[1:]]
-	for s in range(21):
+	state, offset = grow(state, generations, 20)
 
-		print("{0:02d}:  {1}".format(s, "".join(current_state)))
+	print("({1}):  {0} {2}".format(state, offset, sum_plants(state, offset)))
 
-		next_state = ["." for _ in range(len(current_state))]
+	assert (sum_plants(state, offset) == 325)
 
-		for plant in plants:
-			next_state = plant.apply(next_state, current_state)
 
-		current_state = next_state
+def first():
+	current_state = INPUT[0]
+	generations = [Generation(s) for s in INPUT[1:]]
+
+	current_state, offset = grow(current_state, generations, 20)
+
+	print("({1}):  {0}".format(current_state, offset))
+
+	return sum_plants(current_state, offset)
+
+
+def second():
+	current_state = INPUT[0]
+	generations = [Generation(s) for s in INPUT[1:]]
+
+	current_state, offset = grow(current_state, generations, 50000000000)
+
+	print("({1}):  {0}".format(current_state, offset))
+
+	return sum_plants(current_state, offset)
 
 
 if __name__ == "__main__":
-	test()
+	# test()
 
-	print("Blaat")
-
-	print("Blaat")
+	print("Sum of plants after 20 generations: {0}".format(first()))
+	print("Sum of plants after 50 billion generations: {0}".format(second()))

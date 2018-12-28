@@ -3,44 +3,73 @@ def get_input():
         return f.readlines()
 
 
+def get_collisions(carts):
+    r = list()
+    for cart in carts:
+        r.extend(
+            [c for c in carts if
+             c is not cart and c.location.x == cart.location.x and c.location.y == cart.location.y and c.valid])
+    return r
+
+
 class Location:
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
+    def __str__(self):
+        return "({0},{1})".format(self.x, self.y)
+
 
 class Map:
+    orientations = ["^", ">", "v", "<"]
+
     def __init__(self, lines):
-        self.lines = lines
+        self.lines = [line.replace("\n", "") for line in lines]
         self.carts = list()
 
-    def prepare(self):
-        pass
-
     def __getitem__(self, location):
-        pass
+        return self.lines[location.y][location.x]
+
+    def print(self):
+        for y in range(len(self.lines)):
+            line = self.lines[y]
+            s = ""
+            for x in range(len(line)):
+                carts = [c for c in self.carts if c.location.x == x and c.location.y == y]
+                if len(carts) == 0:
+                    s += self[Location(x, y)]
+                elif len(carts) == 1:
+                    s += carts[0].o
+                else:
+                    s += "X"
+            print(s)
+
+    def prepare(self):
+        for y in range(len(self.lines)):
+            line = self.lines[y]
+            for x in range(len(line)):
+
+                location = Location(x, y)
+
+                c = self[location]
+
+                if c in Map.orientations:
+                    self.carts.append(Cart(location, c))
+
+        for l in range(len(self.lines)):
+            self.lines[l] = self.lines[l].replace(">", "-").replace("<", "-").replace("^", "|").replace("v", "|")
 
 
 class Cart:
-    orientations = ["^", ">", "v", "<"]
 
-    def __init__(self, location, o, limits):
+    def __init__(self, location, o):
         self.location = location
         self.o = o
-        self.limits = limits
         self.last = None
+        self.valid = True
 
-    def move(self, c):
-        if c == "+":
-            if self.last is None or self.last == "right":
-                self.o = self.turn_left(self.o)
-                self.last = "left"
-            elif self.last == "straight":
-                self.o = self.turn_right(self.o)
-                self.last = "right"
-            else:
-                self.last = "straight"
-
+    def move(self, map):
         if self.o == "^":
             self.location.y -= 1
         elif self.o == ">":
@@ -50,63 +79,112 @@ class Cart:
         elif self.o == "<":
             self.location.x -= 1
 
-        self.limits()
+        c = map[self.location]
 
-        self.o = self.orientation(c)
+        self.orientation(c)
+
+        # print((self.location.x, self.location.y), c, self.o)
 
     def orientation(self, c):
+
         if c == "/":
-            if self.o == "^":
-                c = ">"
-            elif c == "v":
-                c = "<"
-            elif c == ">":
-                c = "^"
-            elif c == "<":
-                c = "v"
-        elif self.o == "\\":
-            if c == "^":
-                c = "<"
-            elif c == ">":
-                c = "<"
-            elif c == ">":
-                c = "v"
-            elif c == "<":
-                c = "^"
-        return c
+            if self.o == "^" or self.o == "v":
+                self.turn_right()
+            elif self.o == ">" or self.o == "<":
+                self.turn_left()
+        elif c == "\\":
+            if self.o == "^" or self.o == "v":
+                self.turn_left()
+            elif self.o == ">" or self.o == "<":
+                self.turn_right()
+        elif c == "+":
+            if self.last is None or self.last == "right":
+                self.turn_left()
+                self.last = "left"
+            elif self.last == "straight":
+                self.turn_right()
+                self.last = "right"
+            else:
+                self.last = "straight"
 
     def turn_left(self):
-        ix = Cart.orientations.index(self.o)
+        ix = Map.orientations.index(self.o)
         ix -= 1
         if ix < 0:
-            ix = len(Cart.orientations) - 1
-        return Cart.orientations[ix]
+            ix = len(Map.orientations) - 1
+        self.o = Map.orientations[ix]
 
     def turn_right(self):
-        ix = Cart.orientations.index(self.o)
-        ix = (ix + 1) % len(Cart.orientations)
-        return Cart.orientations[ix]
+        ix = Map.orientations.index(self.o)
+        ix = (ix + 1) % len(Map.orientations)
+        self.o = Map.orientations[ix]
 
-    def limits(self):
-        if self.location.x <= 0:
-            self.location.x = 0
-        if self.location.x >= self.limits.x:
-            self.location.x = self.limits.x
-        if self.location.y <= 0:
-            self.location.y = 0
-        if self.location.y >= self.limits.y:
-            self.location.y = self.limits.y
+
+def move_while_no_collisions(map):
+    while True:
+
+        # Cart movement order is from top to bottom, left to right
+        map.carts.sort(key=lambda c: (c.location.y << 16) | c.location.x)
+
+        for cart in map.carts:
+            cart.move(map)
+
+            collisions = get_collisions(map.carts)
+
+            if len(collisions) != 0:
+                return collisions
+
+
+def move_while_more_than_one_remain(map):
+    while len(map.carts) > 1:
+
+        # Cart movement order is from top to bottom, left to right
+        map.carts.sort(key=lambda c: (c.location.y << 16) | c.location.x)
+
+        # Move *all* carts, but when collided do not count in further collisions
+        for cart in filter(lambda cart: cart.valid, map.carts):
+            cart.move(map)
+
+    return map.carts[0]
+
+
+def test():
+    INPUT = ["/->-\\        ",
+             "|   |  /----\\",
+             "| /-+--+-\  |",
+             "| | |  | v  |",
+             "\-+-/  \-+--/",
+             "  \------/   "]
+
+    map = Map(INPUT)
+    map.prepare()
+
+    c = move_while_no_collisions(map)
+
+    map.print()
+
+    assert c[0].location.x == 7 and c[0].location.y == 3
 
 
 def first():
     map = Map(get_input())
     map.prepare()
 
+    c = move_while_no_collisions(map)
+
+    return c[0].location
+
 
 def second():
-    pass
+    map = Map(get_input())
+    map.prepare()
+
+    cart = move_while_more_than_one_remain(map)
+
+    return cart.location
 
 
 if __name__ == "__main__":
-    print("")
-    print("")
+    test()
+    print("Collision at: {0}".format(first()))
+    print("Last cart is at: {0}".format(second()))

@@ -15,11 +15,15 @@ def get_collisions(carts):
 
 class Location:
     def __init__(self, x, y):
-        self.x = x
         self.y = y
+        self.x = x
 
     def __str__(self):
         return "({0},{1})".format(self.x, self.y)
+
+    def __lt__(self, other):
+        """Make Location top-down, left-right sortable"""
+        return self.y < other.y or self.x < other.x
 
 
 class Map:
@@ -111,9 +115,7 @@ class Cart:
 
     def turn_left(self):
         ix = Map.orientations.index(self.o)
-        ix -= 1
-        if ix < 0:
-            ix = len(Map.orientations) - 1
+        ix = (ix + len(Map.orientations) - 1) % len(Map.orientations)
         self.o = Map.orientations[ix]
 
     def turn_right(self):
@@ -126,7 +128,7 @@ def move_while_no_collisions(map):
     while True:
 
         # Cart movement order is from top to bottom, left to right
-        map.carts.sort(key=lambda c: (c.location.y << 16) | c.location.x)
+        map.carts.sort(key=lambda c: c.location)
 
         for cart in map.carts:
             cart.move(map)
@@ -141,7 +143,7 @@ def move_while_more_than_one_remain(map):
     while len(map.carts) > 1:
 
         # Cart movement order is from top to bottom, left to right
-        map.carts.sort(key=lambda c: (c.location.y << 16) | c.location.x)
+        map.carts.sort(key=lambda c: c.location)
 
         # Move *all* carts, but when collided do not count in further collisions
         for cart in map.carts:

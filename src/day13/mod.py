@@ -6,9 +6,10 @@ def get_input():
 def get_collisions(carts):
     r = list()
     for cart in carts:
-        r.extend(
-            [c for c in carts if
-             c is not cart and c.location.x == cart.location.x and c.location.y == cart.location.y and c.valid])
+        if not cart.broken:
+            r.extend(
+                [c for c in carts if
+                 c is not cart and c.location.x == cart.location.x and c.location.y == cart.location.y and not c.broken])
     return r
 
 
@@ -67,7 +68,8 @@ class Cart:
         self.location = location
         self.o = o
         self.last = None
-        self.valid = True
+        self.broken = False
+        self.id = (location.x, location.y)
 
     def move(self, map):
         if self.o == "^":
@@ -142,19 +144,26 @@ def move_while_more_than_one_remain(map):
         map.carts.sort(key=lambda c: (c.location.y << 16) | c.location.x)
 
         # Move *all* carts, but when collided do not count in further collisions
-        for cart in filter(lambda cart: cart.valid, map.carts):
+        for cart in map.carts:
             cart.move(map)
+
+            collisions = get_collisions(map.carts)
+            for c in collisions:
+                c.broken = True
+
+        # Remove all broken carts from list so ordering stays correct
+        map.carts = [c for c in map.carts if not c.broken]
 
     return map.carts[0]
 
 
 def test():
-    INPUT = ["/->-\\        ",
-             "|   |  /----\\",
-             "| /-+--+-\  |",
-             "| | |  | v  |",
-             "\-+-/  \-+--/",
-             "  \------/   "]
+    INPUT = ["/->-\         ",
+             "|   |  /----\ ",
+             "| /-+--+-\  | ",
+             "| | |  | v  | ",
+             "\-+-/  \-+--/ ",
+             "  \------/    "]
 
     map = Map(INPUT)
     map.prepare()
@@ -176,6 +185,14 @@ def first():
 
 
 def second():
+    # INPUT = ["/>-<\   ",
+    #          "|   |   ",
+    #          "| /<+-\ ",
+    #          "| | | v ",
+    #          "\>+</ | ",
+    #          "  |   ^ ",
+    #          "  \<->/ "]
+
     map = Map(get_input())
     map.prepare()
 

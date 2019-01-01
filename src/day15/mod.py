@@ -47,39 +47,57 @@ class Map:
     def reset(self):
         pass
 
-    def process(self, source_map):
+    @staticmethod
+    def process(source_map):
         m, units = list(), list()
 
         for y in range(len(source_map)):
             line = list()
             for x in range(len(source_map[y])):
-                if source_map[y][x] == "#" or source_map[y][x] == ".":
-                    line.append(source_map[y][x])
-                elif source_map[y][x] == "G" or source_map[y][x] == "E":
-                    units.append(Unit(source_map[y][x], x, y))
+
+                c = source_map[y][x]
+
+                if c == "G" or c == "E":
+                    units.append(Unit(c, x, y))
                     line.append(".")
+                else:
+                    line.append(c)
 
             m.append(line)
 
         return m, units
 
     def neighbors(self, location):
+        # Can't move through units
+        ul = [unit.location for unit in self.units]
+
         n = list()
-        if self[location.above()] != "#":
+        if location.above() not in ul and self[location.above()] == ".":
             n.append(location.above())
-        if self[location.right_of()] != "#":
+        if location.right_of() not in ul and self[location.right_of()] == ".":
             n.append(location.right_of())
-        if self[location.below()] != "#":
+        if location.below() not in ul and self[location.below()] == ".":
             n.append(location.below())
-        if self[location.left_of()] != "#":
+        if location.left_of() not in ul and self[location.left_of()] == ".":
             n.append(location.left_of())
 
         return n
 
     def __str__(self):
+        locations = {unit.location: unit for unit in self.units}
+
         s = ""
         for y in range(len(self.map)):
-            s += str(self.map[y]) + "\n"
+            line = self.map[y]
+            for x in range(len(line)):
+                location = Location(x, y)
+                if location in locations:
+                    s += locations[location].type
+                else:
+                    s += line[x]
+
+            s += "\n"
+
         return s
 
 
@@ -103,8 +121,15 @@ class Location:
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
 
+    def __lt__(self, other):
+        return hash(self) < hash(other)
+
     def __hash__(self):
         return hash((self.y << 16) | self.x)
+
+
+def manhattan_distance(a, b):
+    return abs(b.x - a.x) + abs(b.y - a.y)
 
 
 class BreadthFirst:
@@ -135,15 +160,21 @@ class BreadthFirst:
 
         return path_map
 
-    def path(self, target):
+    def path_near(self, target):
+        """
+        Find path to nearest location next to target (either above/below/left of or right of)
+        """
         current = target
 
-        path = []
-        while current != self.start:
-            path.append(current)
-            current = self.search_map[current]
-        #path.append(self.start)
-        path.reverse()  # optional
+        path = list()
+        try:
+            while manhattan_distance(current, self.start) >= 1:
+                path.append(current)
+                current = self.search_map[current]
+
+            path.reverse()
+        except KeyError:  # No path exists
+            path.clear()
 
         return path
 
@@ -159,15 +190,24 @@ def test():
     map = Map(INPUT)
     print(map)
 
+    # Sort units in top-down/left-right fashion (reading order) based on location
+    map.units.sort(key=lambda u: u.location)
+
     src = map.units[0]
-    target = map.units[1]
 
     bf = BreadthFirst(map, src.location)
 
-    path = bf.path(target.location)
+    targets = [u for u in map.units if u.type != src.type]
+    targets = [map.units[2]]
+    paths = [bf.path_near(target.location) for target in targets]
+
+    # Filter empty paths.
+    nearest_path = [path for path in paths if len(path) > 0]
+    # Shortest path is nearest target. If more of them exist, take the target first in reading order
+    nearest_path.sort(key=lambda p: (len(p), p[0]))
 
     n = 1
-    for location in path:
+    for location in nearest_path[0]:
         map[location] = str(n % 10)
         n += 1
 

@@ -35,8 +35,8 @@ INPUT = ["################################",
 
 
 class Map:
-    def __init__(self, source_map):
-        self.map, self.units = self.process(source_map)
+    def __init__(self, source_map, elf_power=3):
+        self.map, self.units = self.process(source_map, elf_power)
 
     def __getitem__(self, location):
         return self.map[location.y][location.x]
@@ -52,7 +52,7 @@ class Map:
                     line[x] = '.'
 
     @staticmethod
-    def process(source_map):
+    def process(source_map, elf_power):
         m, units = list(), list()
 
         for y in range(len(source_map)):
@@ -60,12 +60,13 @@ class Map:
             for x in range(len(source_map[y])):
 
                 c = source_map[y][x]
+                if c == "G":
+                    units.append(Unit(c, x, y, 3))
+                elif c == "E":
+                    units.append(Unit(c, x, y, elf_power))
 
-                if c == "G" or c == "E":
-                    units.append(Unit(c, x, y))
-                    line.append(".")  # Make sure locations with units are normally passable
-                else:
-                    line.append(c)
+                # Make sure locations with units are normally passable
+                line.append(c if c != 'E' and c != 'G' else ".")
 
             m.append(line)
 
@@ -75,10 +76,13 @@ class Map:
     def is_passable(c):
         return c in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
+    def valid_units(self):
+        return (unit for unit in self.units if not unit.is_dead())
+
     def neighbors(self, location, target):
 
         # Can't move through units. Can move to target
-        ul = [unit.location for unit in self.units if unit.location != target]
+        ul = [unit.location for unit in self.valid_units() if unit.location != target]
 
         n = list()
         # Neighbors are added in reading order to prioritize those paths that have their first position
@@ -95,12 +99,15 @@ class Map:
         return n
 
     def targets(self, unit):
-        return [u for u in self.units if u.unit_type != unit.unit_type and not u.is_dead()]
+        return [u for u in self.valid_units() if u.unit_type != unit.unit_type]
+
+    def elves(self):
+        return [u for u in self.units if u.unit_type == 'E']
 
     def __str__(self):
-        locations = {unit.location: unit for unit in self.units if not unit.is_dead()}
+        locations = {unit.location: unit for unit in self.valid_units()}
 
-        s = ""
+        s = str()
         for y in range(len(self.map)):
             line = self.map[y]
             for x in range(len(line)):
@@ -112,7 +119,7 @@ class Map:
 
             s += "\t"
 
-            for unit in sorted([unit for unit in self.units if unit.location.y == y], key=lambda unit: unit.location):
+            for unit in sorted((unit for unit in self.units if unit.location.y == y), key=lambda unit: unit.location):
                 s += str(unit)
 
             s += "\n"
@@ -200,9 +207,9 @@ class BreadthFirst:
 
 
 class Unit:
-    def __init__(self, unit_type, x, y):
+    def __init__(self, unit_type, x, y, power):
         self.hp = 200
-        self.power = 3
+        self.power = power
         self.unit_type = unit_type
         self.location = Location(x, y)
 
@@ -223,9 +230,9 @@ class Unit:
         return "({0}:{1})".format(self.unit_type, self.hp)
 
 
-def find_victim(src, targets):
+def find_victim(src, valid_targets):
     # Get all non-dead targets in attack range
-    victims = [target for target in targets if not target.is_dead() and src.distance(target) <= 1]
+    victims = [target for target in valid_targets if src.distance(target) <= 1]
 
     # Sort target by smallest HP, then reading order based on location
     victims.sort(key=lambda u: (u.hp, u.location))
@@ -236,13 +243,10 @@ def find_victim(src, targets):
 def process_round(map):
     r = True
 
-    # Remove dead units
-    map.units = [unit for unit in map.units if not unit.is_dead()]
-
     # Sort units in reading order based on location
     map.units.sort(key=lambda unit: unit.location)
 
-    for unit in map.units:
+    for unit in map.valid_units():
 
         # Skip if unit died this round before it had a chance to do something
         if unit.is_dead():
@@ -277,29 +281,25 @@ def process_round(map):
     return r
 
 
-def battle(map_input, print_steps=False):
-    map = Map(map_input)
-    print("Start")
-    print(map)
+def battle(map, print_steps=False):
+    print("Start\n{0}".format(map))
 
     rounds = 0
 
     while True:
         if not process_round(map):
-            print(map)
-            print("End")
+            print("{0}End".format(map))
             break
         else:
             rounds += 1
             if print_steps:
-                print(rounds)
-                print(map)
+                print("{0}\n{1}".format(rounds, map))
             map.reset()
 
     return rounds, sum([unit.hp for unit in map.units if not unit.is_dead()])
 
 
-def test():
+def test_first():
     map_input = ["#######",
                  "#.G...#",
                  "#...EG#",
@@ -307,7 +307,7 @@ def test():
                  "#..G#E#",
                  "#.....#",
                  "#######"]
-    rounds, hp = battle(map_input)
+    rounds, hp = battle(Map(map_input))
     assert (rounds * hp == 27730)
 
     map_input = ["#######",
@@ -317,7 +317,7 @@ def test():
                  "#...#E#",
                  "#...E.#",
                  "#######"]
-    rounds, hp = battle(map_input)
+    rounds, hp = battle(Map(map_input))
     assert (rounds * hp == 36334)
 
     map_input = ["#######",
@@ -327,7 +327,7 @@ def test():
                  "#G..#.#",
                  "#..E#.#",
                  "#######"]
-    rounds, hp = battle(map_input)
+    rounds, hp = battle(Map(map_input))
     assert (rounds * hp == 39514)
 
     map_input = ["#######",
@@ -337,7 +337,7 @@ def test():
                  "#G..#.#",
                  "#...E.#",
                  "#######"]
-    rounds, hp = battle(map_input)
+    rounds, hp = battle(Map(map_input))
     assert (rounds * hp == 27755)
 
     map_input = ["#######",
@@ -347,7 +347,7 @@ def test():
                  "#E#G#G#",
                  "#...#G#",
                  "#######"]
-    rounds, hp = battle(map_input)
+    rounds, hp = battle(Map(map_input))
     assert (rounds * hp == 28944)
 
     map_input = ["#########",
@@ -359,22 +359,119 @@ def test():
                  "#.G...G.#",
                  "#.....G.#",
                  "#########"]
-    rounds, hp = battle(map_input)
+    rounds, hp = battle(Map(map_input))
     assert (rounds * hp == 18740)
 
 
 def first():
-    return battle(INPUT, True)
+    return battle(Map(INPUT), True)
+
+
+def test_second():
+    map_input = ["#######",
+                 "#.G...#",
+                 "#...EG#",
+                 "#.#.#G#",
+                 "#..G#E#",
+                 "#.....#",
+                 "#######"]
+    rounds, hp = battle(Map(map_input, 15))
+    assert (rounds * hp == 4988)
+
+    map_input = ["#######",
+                 "#E..EG#",
+                 "#.#G.E#",
+                 "#E.##E#",
+                 "#G..#.#",
+                 "#..E#.#",
+                 "#######"]
+    rounds, hp = battle(Map(map_input, 4))
+    assert (rounds * hp == 31284)
+
+    map_input = ["#######",
+                 "#E.G#.#",
+                 "#.#G..#",
+                 "#G.#.G#",
+                 "#G..#.#",
+                 "#...E.#",
+                 "#######"]
+    rounds, hp = battle(Map(map_input, 15))
+    print(rounds, hp)
+    assert (rounds * hp == 3478)
+
+    map_input = ["#######",
+                 "#.E...#",
+                 "#.#..G#",
+                 "#.###.#",
+                 "#E#G#G#",
+                 "#...#G#",
+                 "#######"]
+    rounds, hp = battle(Map(map_input, 12))
+    assert (rounds * hp == 6474)
+
+    map_input = ["#########",
+                 "#G......#",
+                 "#.E.#...#",
+                 "#..##..G#",
+                 "#...##..#",
+                 "#...#...#",
+                 "#.G...G.#",
+                 "#.....G.#",
+                 "#########"]
+    rounds, hp = battle(Map(map_input, 34))
+    assert (rounds * hp == 1140)
 
 
 def second():
-    return 0
+    """
+    Did this with power * 1.5 first then came out at 13 [ 4, 6, 9, 13 ]
+    After that started at 10 and used +1 and came out at 11 [ 10, 11 ]
+    The i fixed my algorithm with help of https://lamperi.name/aoc, turns out when determining neighbors
+    and regarding units: dead units should not be blocking movement :D
+
+    """
+    elf_power = 10
+
+    map = Map(INPUT, elf_power)
+
+    elves = len(map.elves())
+
+    rounds = 0
+
+    while True:
+
+        while len(map.elves()) == elves:
+            if not process_round(map):
+                print(map)
+                break
+            else:
+                rounds += 1
+                print(map)
+                map.reset()
+
+        if len(map.elves()) == elves:
+            break
+        else:
+            # elf_power = int(elf_power * 1.5)
+            elf_power = int(elf_power + 1)
+
+            print("Trying with power : {0}".format(elf_power))
+
+            rounds = 0
+            map = Map(INPUT, elf_power)
+
+    return rounds, sum([unit.hp for unit in map.units if not unit.is_dead()])
 
 
 if __name__ == "__main__":
-    test()
+    test_first()
 
     rounds, hp = first()
+    assert (rounds * hp == 201638)
     print("Battled for {0} rounds and left with {1} HP for a total of {2}".format(rounds, hp, rounds * hp))
-    #
-    # print("Blaat: {0}".format(second()))
+
+    test_second()
+
+    rounds, hp = second()
+    assert (rounds * hp == 95764)
+    print("Battled for {0} rounds and left with {1} HP for a total of {2}".format(rounds, hp, rounds * hp))

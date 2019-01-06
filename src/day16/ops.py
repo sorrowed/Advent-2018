@@ -62,4 +62,3 @@ def eqrr(ops, registers):
     registers[ops[2]] = 1 if registers[ops[0]] == registers[ops[1]] else 0
 
 
-instructions = [addr, addi, mulr, muli, banr, bani, borr, bori, setr, seti, gtir, gtri, gtrr, eqir, eqri, eqrr]

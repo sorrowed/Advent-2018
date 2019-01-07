@@ -16,11 +16,6 @@ class Region:
 
         self.fill = fill
 
-    def apply(self, map):
-        for y in self.y:
-            for x in self.x:
-                map[(x, y)] = self.fill
-
     def x_min(self):
         return self.x[0]
 
@@ -33,6 +28,30 @@ class Region:
     def y_max(self):
         return self.y[-1]
 
+    @staticmethod
+    def clay(line):
+        return Region(line, "#")
+
+    @staticmethod
+    def well(line):
+        return Region(line, "+")
+
+    @staticmethod
+    def is_clay(fill):
+        return fill == '#'
+
+    @staticmethod
+    def is_water(fill):
+        return fill == '~'
+
+    @staticmethod
+    def was_water(fill):
+        return fill == '|'
+
+    @staticmethod
+    def is_well(fill):
+        return fill == '+'
+
 
 class Map:
     def __init__(self, top_left, bottom_right):
@@ -40,11 +59,36 @@ class Map:
         self.bottom_right = bottom_right
         self.map = [['.'] * (1 + bottom_right[0] - top_left[0]) for _ in range(1 + bottom_right[1] - top_left[1])]
 
+    def __getitem__(self, location):
+        return self.map[location[1] - self.top_Left[1]][location[0] - self.top_Left[0]]
+
     def __setitem__(self, location, value):
         self.map[location[1] - self.top_Left[1]][location[0] - self.top_Left[0]] = value
 
     def __str__(self):
         return "\n".join("".join(line) for line in self.map)
+
+    def apply_region(self, region):
+        for y in region.y:
+            for x in region.x:
+                self[(x, y)] = region.fill
+
+    def water(self):
+        # Iterate from last but one @bottom to top
+        for y in range(self.bottom_right[1] - 1, self.top_Left[1] - 1, -1):
+
+            # Iterate from leftmost column to rightmost column
+            for x in range(self.top_Left[0], self.bottom_right[0] + 1):
+
+                current = self[(x, y)]
+                left = self[(x - 1, y)]
+                right = self[(x + 1, y)]
+                below = self[(x, y + 1)]
+
+                if Region.is_water(current):
+                    pass
+                elif Region.is_clay(current):
+                    pass
 
 
 def get_input():
@@ -52,20 +96,26 @@ def get_input():
         return f.readlines()
 
 
-def create_map(inp):
-    regions = list()
-    for line in inp:
-        regions.append(Region(line, "#"))
+def regions_add_well(regions):
+    regions.append(Region.well("x=500,y=0..0"))
 
-    # Append well
-    regions.append(Region("x=500,y=0..0", "+"))
 
+def regions_find_extends(regions):
     top_left = (min([r.x_min() for r in regions]), min([r.y_min() for r in regions]))
     bottom_right = (max([r.x_max() for r in regions]), max([r.y_max() for r in regions]))
 
+    return top_left, bottom_right
+
+
+def create_map(inp):
+    regions = [Region.clay(line) for line in inp]
+    regions_add_well(regions)
+
+    top_left, bottom_right = regions_find_extends(regions)
+
     map = Map(top_left, bottom_right)
     for region in regions:
-        region.apply(map)
+        map.apply_region(region)
 
     return map
 

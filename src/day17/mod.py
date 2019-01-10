@@ -3,92 +3,146 @@ import re
 pattern = re.compile(r"(\w)=(\d*),.*(\w)=(\d*)\.\.(\d*)")
 
 
-class Region:
-    def __init__(self, line, fill):
-        matches = pattern.match(line)
+class Location:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
-        if line.startswith('x'):
-            self.x = range(int(matches.group(2)), int(matches.group(2)) + 1)
-            self.y = range(int(matches.group(4)), int(matches.group(5)) + 1)
-        elif line.startswith('y'):
-            self.y = range(int(matches.group(2)), int(matches.group(2)) + 1)
-            self.x = range(int(matches.group(4)), int(matches.group(5)) + 1)
+    def __str__(self):
+        return "({0},{1})".format(self.x, self.y)
 
+    def left(self):
+        return Location(self.x - 1, self.y)
+
+    def right(self):
+        return Location(self.x + 1, self.y)
+
+    def down(self):
+        return Location(self.x, self.y + 1)
+
+    @staticmethod
+    def copy(loc):
+        return Location(loc.x, loc.y)
+
+
+class Square:
+    def __init__(self, loc, fill):
+        self.loc = loc
+        self.came_from = None
         self.fill = fill
 
-    def x_min(self):
-        return self.x[0]
+    def __str__(self):
+        return "{0}:{1}".format(str(self.loc), self.fill)
 
-    def x_max(self):
-        return self.x[-1]
+    def can_flow(self):
+        return not self.is_water() and not self.is_clay()
 
-    def y_min(self):
-        return self.y[0]
+    def is_clay(self):
+        return self.fill == '#'
 
-    def y_max(self):
-        return self.y[-1]
+    def is_water(self):
+        return self.fill == '~'
 
-    @staticmethod
-    def clay(line):
-        return Region(line, "#")
+    def was_water(self):
+        return self.fill == '|'
 
-    @staticmethod
-    def well(line):
-        return Region(line, "+")
+    def is_well(self):
+        return self.fill == '+'
 
-    @staticmethod
-    def is_clay(fill):
-        return fill == '#'
+    def came_from(self, loc):
+        return loc.x == self.loc.x and loc.y == self.loc.y
 
     @staticmethod
-    def is_water(fill):
-        return fill == '~'
+    def sand(loc):
+        return Square(loc, ".")
 
     @staticmethod
-    def was_water(fill):
-        return fill == '|'
+    def clay(loc):
+        return Square(loc, "#")
 
     @staticmethod
-    def is_well(fill):
-        return fill == '+'
+    def well(loc):
+        return Square(loc, "+")
+
+    @staticmethod
+    def water(loc):
+        return Square(loc, "~")
+
+    @staticmethod
+    def dried(loc):
+        return Square(loc, "|")
 
 
 class Map:
-    def __init__(self, top_left, bottom_right):
-        self.top_Left = top_left
-        self.bottom_right = bottom_right
-        self.map = [['.'] * (1 + bottom_right[0] - top_left[0]) for _ in range(1 + bottom_right[1] - top_left[1])]
+    def __init__(self, tl, br):
+        self.tl = tl
+        self.br = br
 
-    def __getitem__(self, location):
-        return self.map[location[1] - self.top_Left[1]][location[0] - self.top_Left[0]]
+        m = list()
+        for y in range(self.height()):
+            m.append([Square.sand(Location(tl.x + x, tl.y + y)) for x in range(self.width())])
+        self.map = m
 
-    def __setitem__(self, location, value):
-        self.map[location[1] - self.top_Left[1]][location[0] - self.top_Left[0]] = value
+    def width(self):
+        return 1 + self.br.x - self.tl.x
+
+    def height(self):
+        return 1 + self.br.y - self.tl.y
+
+    def __getitem__(self, loc):
+        return self.map[loc.y - self.tl.y][loc.x - self.tl.x]
+
+    def __setitem__(self, loc, value):
+        self.map[loc.y - self.tl.y][loc.x - self.tl.x] = value
 
     def __str__(self):
-        return "\n".join("".join(line) for line in self.map)
+        s = str()
+        for row in self.map:
+            s += "".join([s.fill for s in row]) + "\n"
+
+        return s
 
     def apply_region(self, region):
-        for y in region.y:
-            for x in region.x:
-                self[(x, y)] = region.fill
+        for square in region.squares:
+            self[square.loc] = square
 
-    def water(self):
-        # Iterate from last but one @bottom to top
-        for y in range(self.bottom_right[1] - 1, self.top_Left[1] - 1, -1):
+    def flow(self):
+        equilibrium = True
+        # Iterate from bottom to top
+
+        for y in range(self.br.y, self.tl.y - 1, -1):
 
             # Iterate from leftmost column to rightmost column
-            for x in range(self.top_Left[0], self.bottom_right[0] + 1):
+            for x in range(self.tl.x, self.br.x + 1):
+                loc = Location(x, y)
 
-                current = self[(x, y)]
-                left = self[(x - 1, y)]
-                right = self[(x + 1, y)]
-                below = self[(x, y + 1)]
+                current = self[loc]
 
-                if Region.is_water(current):
-                    pass
-                elif Region.is_clay(current):
-                    pass
+                left = self[loc.left()] if x > 0 else None
+                right = self[loc.right()] if x < self.br.x else None
+                below = self[loc.down()] if y < self.br.y else None
+
+                if current.is_water():
+
+                    if below is None or below.can_flow():
+                        equilibrium = False
+                        if below is not None:
+                            self[below.loc] = Square.water(Location.copy(below.loc))
+
+                        self[loc] = Square.dried(Location.copy(loc))
+
+                    elif left is None or left.can_flow():
+                        equilibrium = False
+                        if left is not None:
+                            self[left.loc] = Square.water(Location.copy(left.loc))
+                        self[loc] = Square.dried(Location.copy(loc))
+
+                    elif right is None or right.can_flow():
+                        equilibrium = False
+                        if right is not None:
+                            self[right.loc] = Square.water(Location.copy(right.loc))
+                        self[loc] = Square.dried(Location.copy(loc))
+        return equilibrium
 
 
 def get_input():
@@ -96,26 +150,37 @@ def get_input():
         return f.readlines()
 
 
-def regions_add_well(regions):
-    regions.append(Region.well("x=500,y=0..0"))
+def parse_squares(line):
+    matches = pattern.match(line)
+
+    if line.startswith('x'):
+        x_range = range(int(matches.group(2)), int(matches.group(2)) + 1)
+        y_range = range(int(matches.group(4)), int(matches.group(5)) + 1)
+    elif line.startswith('y'):
+        y_range = range(int(matches.group(2)), int(matches.group(2)) + 1)
+        x_range = range(int(matches.group(4)), int(matches.group(5)) + 1)
+
+    return [Square.clay(Location(x, y)) for y in y_range for x in x_range]
 
 
-def regions_find_extends(regions):
-    top_left = (min([r.x_min() for r in regions]), min([r.y_min() for r in regions]))
-    bottom_right = (max([r.x_max() for r in regions]), max([r.y_max() for r in regions]))
+def squares_find_extends(squares):
+    left, top = min([s.loc.x for s in squares]), min([s.loc.y for s in squares])
+    right, bottom = max([s.loc.x for s in squares]), max([s.loc.y for s in squares])
 
-    return top_left, bottom_right
+    return Location(left - 1, top), Location(right + 1, bottom)
 
 
 def create_map(inp):
-    regions = [Region.clay(line) for line in inp]
-    regions_add_well(regions)
+    squares = list()
+    for line in inp:
+        squares.extend(parse_squares(line))
+    squares.append(Square.well(Location(500, 0)))
 
-    top_left, bottom_right = regions_find_extends(regions)
+    tl, br = squares_find_extends(squares)
 
-    map = Map(top_left, bottom_right)
-    for region in regions:
-        map.apply_region(region)
+    map = Map(tl, br)
+    for square in squares:
+        map[square.loc] = square
 
     return map
 
@@ -131,10 +196,16 @@ def test():
            "y=13, x=498..504"]
 
     map = create_map(inp)
-
-    map[map.top_Left] = "!"
-    map[map.bottom_right] = "@"
     print(map)
+
+    for _ in range(19):
+        water = Square.water(Location(500, 1))
+        map[water.loc] = water
+        map.flow()
+        print(map)
+
+    # while not map.flow():
+    #     print(map)
 
 
 def first():
@@ -148,5 +219,5 @@ def second():
 
 if __name__ == "__main__":
     test()
-    print("Number of tiles the water can reach: {0}".format(first()))
-    print("Some other graph questions answer: {0}".format(second()))
+    # print("Number of tiles the water can reach: {0}".format(first()))
+    # print("Some other graph questions answer: {0}".format(second()))

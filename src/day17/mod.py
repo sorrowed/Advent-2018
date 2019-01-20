@@ -1,4 +1,5 @@
 import re
+import sys
 
 pattern = re.compile(r"(\w)=(\d*),.*(\w)=(\d*)\.\.(\d*)")
 
@@ -37,23 +38,17 @@ class Square:
     def __str__(self):
         return "{0}:{1}".format(str(self.loc), self.fill)
 
-    def can_flow_to(self):
-        return not self.is_water() and not self.is_clay()
-
     def is_clay(self):
         return self.fill == '#'
 
     def is_water(self):
         return self.fill in ['~', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
-    def was_water(self):
+    def is_dried(self):
         return self.fill == '|'
 
-    def is_well(self):
-        return self.fill == '+'
-
-    def came_from(self, loc):
-        return self.from_loc is not None and loc.x == self.from_loc.x and loc.y == self.from_loc.y
+    def is_sand(self):
+        return self.fill == '.' or self.is_dried();
 
     @staticmethod
     def sand(loc):
@@ -70,7 +65,6 @@ class Square:
     @staticmethod
     def water(loc):
         Square.id = (Square.id + 1) % 10
-
         return Square(loc, str(Square.id))
 
     @staticmethod
@@ -107,56 +101,49 @@ class Map:
 
         return s
 
-    def apply_region(self, region):
-        for square in region.squares:
-            self[square.loc] = square
+    def is_valid(self, loc):
+        return self.tl.x <= loc.x <= self.br.x and \
+               self.tl.y <= loc.y <= self.br.y
 
-    def move_to(self, to_square, from_square):
+    def flow(self, loc):
+        while self.is_valid(loc.down()) and self[loc.down()].is_sand():
+            self[loc] = Square.dried(loc)
+            loc = loc.down()
+        self[loc] = Square.water(loc)
 
-        if to_square is not None:
-            target = Square(Location.copy(to_square.loc), from_square.fill)
-            target.from_loc = Location.copy(from_square.loc)
-            target.has_flowed = True
-            self[to_square.loc] = target
+        locations = list()
 
-        self[from_square.loc] = Square.dried(Location.copy(from_square.loc))
+        l = Location.copy(loc).left()
+        while self[l].is_sand():
+            self[l] = Square.water(l)
 
-    def flow(self):
-        equilibrium = True
-        # Iterate from bottom to top
+            if not self.is_valid(l.down()) or self[l.down()].is_sand():
 
-        for l in self.map:
-            for s in l:
-                s.has_flowed = False
+                if self.is_valid(l.down()) and self[l.down()].is_sand():
+                    locations.append(l)
 
-        for y in range(self.br.y, self.tl.y - 1, -1):
+                while self[l].is_water() or self[l].is_dried():
+                    self[l] = Square.dried(l)
+                    l = l.right()
+                break
 
-            # Iterate from leftmost column to rightmost column
-            # fixme: this should iterate from outside to inside to make sure that
-            # water that has moved also causes other water that was previously blocked to move
-            for x in range(self.tl.x, self.br.x + 1):
-                loc = Location(x, y)
+            l = l.left()
 
-                current = self[loc]
+        l = Location.copy(loc).right()
+        while self[l].is_sand():
+            self[l] = Square.water(l)
 
-                if not current.has_flowed and current.is_water():
-                    left = self[loc.left()] if x > 0 else None
-                    right = self[loc.right()] if x < self.br.x else None
-                    below = self[loc.down()] if y < self.br.y else None
+            if not self.is_valid(l.down()) or self[l.down()].is_sand():
+                if self.is_valid(l.down()) and self[l.down()].is_sand():
+                    locations.append(l)
+                while self[l].is_water() or self[l].is_dried():
+                    self[l] = Square.dried(l)
+                    l = l.left()
+                break
+            l = l.right()
 
-                    if below is None or (below.can_flow_to() and not current.came_from(below.loc)):
-                        equilibrium = False
-                        self.move_to(below, current)
-
-                    elif left is None or (left.can_flow_to() and not current.came_from(left.loc)):
-                        equilibrium = False
-                        self.move_to(left, current)
-
-                    elif right is None or (right.can_flow_to() and not current.came_from(right.loc)):
-                        equilibrium = False
-                        self.move_to(right, current)
-
-        return equilibrium
+        for loc in locations:
+            self.flow(loc)
 
 
 def get_input():
@@ -210,23 +197,22 @@ def test():
            "y=13, x=498..504"]
 
     map = create_map(inp)
-    print(map)
-
-    for _ in range(19):
-        water = Square.water(Location(500, 1))
+    water = Square.water(Location(500, 1))
+    for _ in range(100):
         map[water.loc] = water
-        map.flow()
-        print(map)
-        raw_input()
-
-    while not map.flow():
-        print(map)
-        raw_input()
+        map.flow(water.loc)
+    print(map)
 
 
 def first():
     map = create_map(get_input())
+    water = Square.water(Location(500, 1))
+    for _ in range(100):
+        map[water.loc] = water
+        map.flow(water.loc)
     print(map)
+
+    return map.water_squares()
 
 
 def second():
@@ -235,5 +221,5 @@ def second():
 
 if __name__ == "__main__":
     test()
-    # print("Number of tiles the water can reach: {0}".format(first()))
-    # print("Some other graph questions answer: {0}".format(second()))
+    print("Number of tiles the water can reach: {0}".format(first()))
+# print("Some other graph questions answer: {0}".format(second()))

@@ -64,8 +64,9 @@ class Square:
 
     @staticmethod
     def water(loc):
-        Square.id = (Square.id + 1) % 10
-        return Square(loc, str(Square.id))
+        # Square.id = (Square.id + 1) % 10
+        # return Square(loc, str(Square.id))
+        return Square(loc, "~")
 
     @staticmethod
     def dried(loc):
@@ -117,7 +118,7 @@ class Map:
             self[loc] = Square.dried(loc)
             return False
 
-        hp = Location.copy(loc)
+        hp = loc.Location.copy(loc)
         spilled = False
         while self.is_valid(loc) and not self[loc].is_clay():
             self[loc] = Square.water(loc)
@@ -183,16 +184,19 @@ def squares_find_extends(squares):
     left, top = min([s.loc.x for s in squares]), min([s.loc.y for s in squares])
     right, bottom = max([s.loc.x for s in squares]), max([s.loc.y for s in squares])
 
-    return Location(left - 1, top), Location(right + 1, bottom)
+    return Location(left, top), Location(right, bottom)
 
 
 def create_map(inp):
     squares = list()
     for line in inp:
         squares.extend(parse_squares(line))
-    squares.append(Square.well(Location(500, 0)))
 
     tl, br = squares_find_extends(squares)
+
+    # Extend to left and right so water may flow left and right freely
+    tl.x -= 1
+    br.x += 1
 
     map = Map(tl, br)
     for square in squares:
@@ -216,24 +220,22 @@ def test():
 
     for _ in range(1000):
         if len(locations) == 0:
-            water = Square.water(Location(500, 1))
+            water = Square.water(Location(500, map.tl.y))
             map[water.loc] = water
             locations.append(water.loc)
         map.flow(locations)
 
     print(map)
+    return map.water_squares()
 
 
 def first():
     map = create_map(get_input())
     locations = list()
 
-    s = -1
-
-    w = map.water_squares()
     for _ in range(20000):
         if len(locations) == 0:
-            water = Square.water(Location(500, 1))
+            water = Square.water(Location(500, map.tl.y))
             map[water.loc] = water
             locations.append(water.loc)
 
@@ -249,6 +251,6 @@ def second():
 
 
 if __name__ == "__main__":
-    test()
+    print("Number of tiles the water can reach on the test map: {0}".format(test()))
     print("Number of tiles the water can reach: {0}".format(first()))
 # print("Some other graph questions answer: {0}".format(second()))

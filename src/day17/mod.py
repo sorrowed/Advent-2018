@@ -1,5 +1,4 @@
 import re
-import sys
 
 pattern = re.compile(r"(\w)=(\d*),.*(\w)=(\d*)\.\.(\d*)")
 
@@ -42,7 +41,7 @@ class Square:
         return self.fill == '#'
 
     def is_water(self):
-        return self.fill in ['~', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
+        return self.fill == '~'
 
     def is_dried(self):
         return self.fill == '|'
@@ -64,8 +63,6 @@ class Square:
 
     @staticmethod
     def water(loc):
-        # Square.id = (Square.id + 1) % 10
-        # return Square(loc, str(Square.id))
         return Square(loc, "~")
 
     @staticmethod
@@ -110,6 +107,7 @@ class Map:
 
         loc = locations.pop()
 
+        # flow down
         while self.is_valid(loc.down()) and self[loc.down()].is_sand():
             self[loc] = Square.dried(loc)
             loc = loc.down()
@@ -118,30 +116,33 @@ class Map:
             self[loc] = Square.dried(loc)
             return False
 
-        hp = loc.Location.copy(loc)
+        hp = Location.copy(loc)
         spilled = False
-        while self.is_valid(loc) and not self[loc].is_clay():
+
+        # flow left (from hp)
+        while not self[loc].is_clay():
             self[loc] = Square.water(loc)
 
             d = loc.down()
-            if self.is_valid(d) and self[d].is_sand():
+            if self[d].is_sand():
                 locations.append(d)
                 spilled = True
                 break
 
             loc = loc.left()
 
+        # flow right (from hp)
         loc = Location.copy(hp)
-        while self.is_valid(loc) and not self[loc].is_clay():
+        while not self[loc].is_clay():
             self[loc] = Square.water(loc)
             d = loc.down()
-            if self.is_valid(d) and self[d].is_sand():
+            if self[d].is_sand():
                 locations.append(d)
                 spilled = True
                 break
             loc = loc.right()
 
-        # Clear hp row if spilled
+        # Dry hp row if spilled left and/or right
         if spilled:
             loc = Location.copy(hp)
             while self[loc].is_water():
@@ -152,14 +153,10 @@ class Map:
                 self[loc] = Square.dried(loc)
                 loc = loc.right()
 
-        return True
+        return not spilled
 
     def water_squares(self):
-        w = 0
-        for row in self.map:
-            w += len([s for s in row if s.is_water() or s.is_dried()])
-
-        return w
+        return sum(len([s for s in row if s.is_water() or s.is_dried()]) for row in self.map)
 
 
 def get_input():
@@ -215,15 +212,18 @@ def test():
            "x=504, y=10..13",
            "y=13, x=498..504"]
 
-    map = create_map(inp)
     locations = list()
 
-    for _ in range(1000):
-        if len(locations) == 0:
+    map = create_map(inp)
+    water = Square.water(Location(500, map.tl.y))
+    map[water.loc] = water
+    locations.append(water.loc)
+
+    while len(locations) > 0:
+        if map.flow(locations):
             water = Square.water(Location(500, map.tl.y))
             map[water.loc] = water
             locations.append(water.loc)
-        map.flow(locations)
 
     print(map)
     return map.water_squares()

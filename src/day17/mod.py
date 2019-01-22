@@ -237,8 +237,6 @@ def test():
 
 
 def first(map):
-    print(map)
-
     return map.dried_or_water_squares()
 
 
@@ -250,6 +248,8 @@ if __name__ == "__main__":
     print("Number of tiles the water can reach on the test map: {0}".format(test()))
 
     map = flow(get_input())
+    print(map)
+
 
     print("Number of tiles the water can reach: {0}".format(first(map)))
     print("Number of tiles that holds water: {0}".format(second(map)))

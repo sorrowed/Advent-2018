@@ -155,8 +155,11 @@ class Map:
 
         return not spilled
 
-    def water_squares(self):
+    def dried_or_water_squares(self):
         return sum(len([s for s in row if s.is_water() or s.is_dried()]) for row in self.map)
+
+    def water_squares(self):
+        return sum(len([s for s in row if s.is_water()]) for row in self.map)
 
 
 def get_input():
@@ -202,35 +205,8 @@ def create_map(inp):
     return map
 
 
-def test():
-    inp = ["x=495, y=2..7",
-           "y=7, x=495..501",
-           "x=501, y=3..7",
-           "x=498, y=2..4",
-           "x=506, y=1..2",
-           "x=498, y=10..13",
-           "x=504, y=10..13",
-           "y=13, x=498..504"]
-
-    locations = list()
-
+def flow(inp):
     map = create_map(inp)
-    water = Square.water(Location(500, map.tl.y))
-    map[water.loc] = water
-    locations.append(water.loc)
-
-    while len(locations) > 0:
-        if map.flow(locations):
-            water = Square.water(Location(500, map.tl.y))
-            map[water.loc] = water
-            locations.append(water.loc)
-
-    print(map)
-    return map.water_squares()
-
-
-def first():
-    map = create_map(get_input())
     locations = list()
 
     for _ in range(20000):
@@ -241,16 +217,39 @@ def first():
 
         map.flow(locations)
 
+    return map
+
+
+def test():
+    inp = ["x=495, y=2..7",
+           "y=7, x=495..501",
+           "x=501, y=3..7",
+           "x=498, y=2..4",
+           "x=506, y=1..2",
+           "x=498, y=10..13",
+           "x=504, y=10..13",
+           "y=13, x=498..504"]
+
+    map = flow(inp)
+
+    print(map)
+    return map.dried_or_water_squares()
+
+
+def first(map):
     print(map)
 
+    return map.dried_or_water_squares()
+
+
+def second(map):
     return map.water_squares()
-
-
-def second():
-    pass
 
 
 if __name__ == "__main__":
     print("Number of tiles the water can reach on the test map: {0}".format(test()))
-    print("Number of tiles the water can reach: {0}".format(first()))
-# print("Some other graph questions answer: {0}".format(second()))
+
+    map = flow(get_input())
+
+    print("Number of tiles the water can reach: {0}".format(first(map)))
+    print("Number of tiles that holds water: {0}".format(second(map)))

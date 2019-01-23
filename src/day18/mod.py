@@ -165,6 +165,13 @@ def first():
     return map.value()
 
 
+def minutes_forward_fast(tries, previous, current):
+    """
+    Forwards the minutes counter given that current minute and previous minute is a (stable!) repetition interval
+    """
+    return tries - (tries - current) % (current - previous)
+
+
 def second():
     map = Map(INPUT)
 
@@ -174,12 +181,15 @@ def second():
         map = map.minute()
         x += 1
 
-        v = map.value()
-
-        if v in scores.keys():
-            # TODO: Advance x close to 1000000000 because of repeating map
-        else:
-            scores[v] = x
+        # After this many minutes a (stable!) map.value() interval (every 28 minutes) is established/observed.
+        # Forward the minutes as close to the requested 1000000000 minutes deadline as possible
+        if x >= 517 and scores is not None:
+            v = map.value()
+            if v in scores.keys():
+                x = minutes_forward_fast(1000000000, scores[v], x)
+                scores = None
+            else:
+                scores[v] = x
 
     print(map)
     return map.value()

@@ -61,10 +61,15 @@ def execute_program(inp, linked_reg, registers):
     execute_instruction(instr[isp.val], registers, isp)
 
     while 0 <= isp.val < len(instr):
-        i = instr[isp.val]
+        pc = isp.val
+        i = instr[pc]
+
+        a = registers[0]
 
         execute_instruction(instr[isp.val], registers, isp)
-        print(i, isp.val, registers)
+
+        if registers[0] != a:
+            print(pc, i, registers)
 
     print(isp.val, registers, "*")
 
@@ -87,10 +92,38 @@ def first():
 def second():
     registers = [1, 0, 0, 0, 0, 0]
 
-    return execute_program(INPUT, ISP_REG, registers)[0]
+    """
+    This is the loop that keeps repeating:
+    registers[0]=A
+    registers[1]=B
+    registers[2]=C
+    registers[3]=D 
+    registers[5]=E 
+    registers[4]=PC
+
+    C = 10551298
+        
+    2 seti 1 7 3										; D = 1
+    3 ['mulr', 1, 3, 5] [0, 1, 10551298, 7215, 3, 7215]	; E = B * D
+    4 ['eqrr', 5, 2, 5] [0, 1, 10551298, 7215, 4, 0]	; 
+    5 ['addr', 5, 4, 4] [0, 1, 10551298, 7215, 5, 0]	; IF E == C THEN GOTO 7
+    6 ['addi', 4, 1, 4] [0, 1, 10551298, 7215, 7, 0]	; GOTO 8
+    7 ['addr', 1, 0, 0 ]								; A = 1
+    8 ['addi', 3, 1, 3] [0, 1, 10551298, 7216, 8, 0]	; D = D + 1
+    9 ['gtrr', 3, 2, 5] [0, 1, 10551298, 7216, 9, 0]	;
+    10 ['addr', 4, 5, 4] [0, 1, 10551298, 7215, 10, 0]	; IF D > C THEN GOTO 12
+    11 ['seti', 2, 4, 4] [0, 1, 10551298, 7215, 2, 0]	; GOTO 3
+    12 [ addi 1 1 1 ]									; B = B + 1
+    13 gtrr 1 2 5
+    14 addr 5 4 4                                       ; IF B > C THEN GOTO 16
+    15 seti 1 5 4										; GOTO 2
+    14 mulr 4 4 4										; EXIT A;
+    """
+
+    return 15844608  # See decode.txt
 
 
 if __name__ == "__main__":
     test()
-    # print("Content of register 0 after executing program: {0}".format(first()))
+    print("Content of register 0 after executing program: {0}".format(first()))
     print("Content of register 0 after executing program: {0}".format(second()))

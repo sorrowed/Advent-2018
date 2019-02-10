@@ -7,9 +7,8 @@ def get_input():
 
 
 class BreadthFirst:
-    def __init__(self, map, start, target):
+    def __init__(self, map, start):
         self.start = start
-        self.target = target
         self.path_map = self.calculate_path_map(map)
 
     def calculate_path_map(self, map):
@@ -22,9 +21,6 @@ class BreadthFirst:
         while not frontier.empty():
             current = frontier.get()
 
-            if current == self.target:
-                break
-
             for n in map.neighbors(current):
                 if n not in path_map:
                     frontier.put(n)
@@ -32,11 +28,11 @@ class BreadthFirst:
 
         return path_map
 
-    def path(self):
+    def path(self, target):
         """
         Find path to target
         """
-        current = self.target
+        current = target
 
         path = list()
         try:
@@ -44,12 +40,13 @@ class BreadthFirst:
                 current = self.path_map[current]
 
                 # Not storing start and target position
-                if current != self.start:
-                    path.append(current)
-                else:
+                if current == self.start:
                     break
 
+                path.append(current)
+
             path.reverse()
+
         except KeyError:  # No path exists
             path.clear()
 
@@ -254,8 +251,10 @@ def test():
 
         traverse(iter(i), m)
 
+        bf = BreadthFirst(m, Location(0, 0))
+
         # Find paths from start position to all dead ends
-        paths = [BreadthFirst(m, Location(0, 0), de).path() for de in m.dead_ends()]
+        paths = [bf.path(de) for de in m.dead_ends()]
 
         # Find the longest path, and only remember the doors (starts at first position with one room in between)
         doors = max(paths, key=lambda path: len(path))[0::2]
@@ -266,13 +265,16 @@ def test():
 
 
 def first():
+    # Construct the map and BF search map
     m = Map()
     m.start(Location(0, 0))
 
     traverse(get_input(), m)
 
+    bf = BreadthFirst(m, Location(0, 0))
+
     # Find paths from start position to all dead ends
-    paths = [BreadthFirst(m, Location(0, 0), de).path() for de in m.dead_ends()]
+    paths = [bf.path(de) for de in m.dead_ends()]
 
     # Find the longest path, remember doors only (first door is at first position, one room in between doors)
     doors = max(paths, key=lambda path: len(path))[0::2]
@@ -285,10 +287,26 @@ def first():
 
 
 def second():
-    pass
+    # Construct the map and BF search map
+    m = Map()
+    m.start(Location(0, 0))
+
+    traverse(get_input(), m)
+
+    bf = BreadthFirst(m, Location(0, 0))
+
+    # Generate all rooms (make sure to exclude start room because that path is empty)
+    rooms = (Location(r[0], r[1]) for r in m.map if
+             not Map.is_start(m[Location(r[0], r[1])]) and Map.is_room(m[Location(r[0], r[1])]))
+
+    # Find paths from start to all rooms and select those with 1000 or more doors
+    paths = [p for p in (bf.path(r)[0::2] for r in rooms) if len(p) >= 1000]
+
+    print(len(paths))
+    return len(paths)
 
 
 if __name__ == "__main__":
     test()
-    # print("Number of doors to furthest room: {0}".format(first()))
-    # print("Dunno: {0}".format(second()))
+    print("Number of doors to furthest room: {0}".format(first()))
+    print("Number of paths with at least 1000 doors: {0}".format(second()))

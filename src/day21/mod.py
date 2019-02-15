@@ -62,11 +62,7 @@ def execute_program(inp, linked_reg, registers):
 
     execute_instruction(instr[isp.val], registers, isp)
 
-    count = 50
-
-    while 0 <= isp.val < len(instr) and count > 0:
-        count -=1
-
+    while 0 <= isp.val < len(instr):
         pc = isp.val
         i = instr[pc]
 
@@ -74,7 +70,7 @@ def execute_program(inp, linked_reg, registers):
 
         execute_instruction(instr[isp.val], registers, isp)
 
-        #if registers[0] != a:
+        # if registers[0] != a:
         print(pc, i, registers)
 
     print(isp.val, registers, "*")
@@ -114,24 +110,76 @@ def execute_program(inp, linked_reg, registers):
 "28: eqrr 5 0 2		    ;R[2]=R[5]==R[0]?1:0"
 "29: addr 2 1 1		    ;IF R[2]==1 GOTO 31"
 "30: seti 5 4 1		    ;GOTO 6"
+
+after a bit of translating an rearranging (could do better) this is the equivalent C++ code to get the first and last 
+register content fo register 0
+
+std::pair< uint64_t, uint64_t > get_maxes()
+{
+
+	int64_t C = 0, D = 0, E = 0, F = 0;
+
+	F = 123;
+	do {
+		F &= 456;
+	} while( F != 72 );
+
+	F = 0;
+
+	std::vector< uint64_t > maxes;
+
+	do {
+		E = F | 65536;
+		F = 3935295;
+
+		do {
+			F += ( E & 255 );
+			F &= 16777215;
+			F *= 65899;
+			F &= 16777215;
+
+			if( 256 > E )
+				break;
+
+			for( C = 0;; ++C ) {
+				D = 256 * ( C + 1 );
+				if( D > E )
+					break;
+			}
+
+			E = C;
+
+		} while( true );
+
+		if( std::find( maxes.begin(), maxes.end(), F ) == maxes.end() ) {
+			maxes.push_back( F );
+		} else {
+			break;
+		}
+	} while( true );
+
+	return std::make_pair( maxes[ 0 ], *maxes.rbegin() );
+}
 """
 
 
 def test():
-    registers = [0] * 10
+    registers = [0] * 6
+    registers[0] = 6577493
+
     execute_program(INPUT, ISP_REG, registers)
     pass
 
 
 def first():
-    pass
+    return 16457176
 
 
 def second():
-    pass
+    return 13625951
 
 
 if __name__ == "__main__":
-    test()
-    print("Blargh: {0}".format(first()))
-    print("Blargh: {0}".format(second()))
+    #test()
+    print("Register value of R0 to break loop as soon as possible: {0}".format(first()))
+    print("Register value of R0 to break loop as late as possible: {0}".format(second()))

@@ -96,15 +96,17 @@ def region_type(el):
 
 
 class ErosionLevelMap:
-    def __init__(self, target, depth):
+    def __init__(self, size, target, depth):
+        self.size = size
         self.target = target
         self.depth = depth
         self.map = self.build_map()
+        self.path = None
 
     def build_map(self):
         m = dict()
-        for y in range(0, self.target.y + 1):
-            for x in range(0, self.target.x + 1):
+        for y in range(0, self.size.y + 1):
+            for x in range(0, self.size.x + 1):
                 location = Location(x, y)
 
                 if not geologic_index_normal(location, self.target):
@@ -124,8 +126,8 @@ class ErosionLevelMap:
 
     def __str__(self):
         s = str()
-        for y in range(0, self.target.y + 1):
-            for x in range(0, self.target.x + 1):
+        for y in range(0, self.size.y + 1):
+            for x in range(0, self.size.x + 1):
                 rt = region_type(self[Location(x, y)])
 
                 if rt == TYPE_ROCKY:
@@ -154,7 +156,7 @@ class CavernLocation:
         """
         Determine possible target CavernLocations (states) from this location
         """
-        neighbors = self.make_neighbors(el_map.target)
+        neighbors = self.make_neighbors(el_map.size)
 
         return [CavernLocation(n, item) for n in neighbors for item in self.items(el_map, n)]
 
@@ -180,11 +182,8 @@ class CavernLocation:
 
         return "({},{},{})".format(self.location.x, self.location.y, item)
 
-    def __eq__(self, other):
-        return self.location == other.location
-
     def __lt__(self, other):
-        return self.location < other.location
+        return self.location < other.location and self.item < other.item
 
     @staticmethod
     def items(el_map, target):
@@ -215,6 +214,8 @@ class Path:
         self.cost = 0
 
     def add(self, step, cost):
+        print("Adding {0} with cost {1}".format(step, cost))
+
         self.cost += cost
         self.steps.append(step)
 
@@ -226,8 +227,8 @@ class Path:
         self.cost = 0
 
     def __str__(self):
-        s = str()
-        for step in self.steps:
+        s = str(self.steps[0])
+        for step in self.steps[1:]:
             s += " -> {0}".format(step)
         return s
 
@@ -291,7 +292,7 @@ def test():
     depth = 510
     target = Location(10, 10)
 
-    el_map = ErosionLevelMap(target, depth)
+    el_map = ErosionLevelMap(target, target, depth)
 
     assert region_type(el_map[Location(0, 0)]) == TYPE_ROCKY
     assert region_type(el_map[Location(1, 0)]) == TYPE_WET
@@ -305,7 +306,9 @@ def test():
 
 
 def first():
-    el_map = ErosionLevelMap(Location(*TARGET), DEPTH)
+    target = Location(*TARGET)
+
+    el_map = ErosionLevelMap(target, target, DEPTH)
 
     return el_map.risk_level()
 
@@ -313,8 +316,11 @@ def first():
 def second():
     depth = 510
     target = Location(10, 10)
+    size = Location(target.x + 6, target.y + 6)
 
-    el_map = ErosionLevelMap(Location(target.x + 8, target.y + 8), depth)
+    el_map = ErosionLevelMap(size, target, depth)
+    print(el_map)
+
     mouth = CavernLocation(Location(0, 0), ITEM_TORCH)
 
     dijkstra = Dijkstra(mouth, el_map)
@@ -325,7 +331,6 @@ def second():
 
     print(path)
 
-    print(region_type(el_map[Location(11, 10)]))
     return path.cost
 
 

@@ -128,16 +128,22 @@ class ErosionLevelMap:
         s = str()
         for y in range(0, self.size.y + 1):
             for x in range(0, self.size.x + 1):
-                rt = region_type(self[Location(x, y)])
 
-                if rt == TYPE_ROCKY:
-                    s += "."
-                elif rt == TYPE_WET:
-                    s += "="
-                elif rt == TYPE_NARROW:
-                    s += "|"
+                p = self.path.find(Location(x, y))
+
+                if len(p) > 0:
+                    s += str(p[0].item)
                 else:
-                    s += "?"
+                    rt = region_type(self[Location(x, y)])
+
+                    if rt == TYPE_ROCKY:
+                        s += "."
+                    elif rt == TYPE_WET:
+                        s += "="
+                    elif rt == TYPE_NARROW:
+                        s += "|"
+                    else:
+                        s += "?"
 
             s += "\n"
 
@@ -158,19 +164,23 @@ class CavernLocation:
         """
         neighbors = self.make_neighbors(el_map.size)
 
-        return [CavernLocation(n, item) for n in neighbors for item in self.items(el_map, n)]
+        return [CavernLocation(n, item) for n in neighbors for item in self.items(el_map, self.location, n)]
 
-    def make_neighbors(self, br):
+    def make_neighbors(self, size):
+        """
+        Generate neighbor states for this cavern location.
+        Make sure that no states are generated for locations that are outside the map region
+        """
         n = list()
         if self.location.x > 0:
             n.append(self.location.left_of())
         if self.location.y > 0:
             n.append(self.location.above())
 
-        if self.location.x < br.x:
+        if self.location.x < size.x:
             n.append(self.location.right_of())
 
-        if self.location.y < br.y:
+        if self.location.y < size.y:
             n.append(self.location.below())
 
         return n
@@ -183,27 +193,38 @@ class CavernLocation:
         return "({},{},{})".format(self.location.x, self.location.y, item)
 
     def __lt__(self, other):
+        """
+        PriorityQueue requires the objects to be orderable on equal priority
+        """
         return self.location < other.location and self.item < other.item
 
     @staticmethod
-    def items(el_map, target):
-        rt = region_type(el_map[target])
+    def items(el_map, start, target):
+        """
+        Valid items in a certain cavern location depend on both source and target location
+        Because the rescuer has to switch gear in the source location and then travel to the target location
+        the gear switched to can only be gear that is valid in both locations
+        """
+        rt_start = CavernLocation.valid_items(region_type(el_map[start]))
+        rt_target = CavernLocation.valid_items(region_type(el_map[target]))
 
-        o = None
+        return list(set(rt_start) & set(rt_target))
+
+    @staticmethod
+    def valid_items(rt):
         if rt == TYPE_ROCKY:
-            o = [ITEM_TORCH, ITEM_GEAR]
+            return [ITEM_TORCH, ITEM_GEAR]
         elif rt == TYPE_WET:
-            o = [ITEM_NEITHER, ITEM_GEAR]
+            return [ITEM_NEITHER, ITEM_GEAR]
         elif rt == TYPE_NARROW:
-            o = [ITEM_NEITHER, ITEM_TORCH]
-
-        return o
+            return [ITEM_NEITHER, ITEM_TORCH]
 
     @staticmethod
     def cost(source, target):
 
         """
         Determine the cost/time to move from this location to target
+        This is at least 1 [minute], but when switching gears add 7 [minutes]
         """
         return 1 if target.item == source.item else 8
 
@@ -214,8 +235,6 @@ class Path:
         self.cost = 0
 
     def add(self, step, cost):
-        print("Adding {0} with cost {1}".format(step, cost))
-
         self.cost += cost
         self.steps.append(step)
 
@@ -226,6 +245,9 @@ class Path:
         self.steps.clear()
         self.cost = 0
 
+    def find(self, location):
+        return [step for step in self.steps if step.location == location]
+
     def __str__(self):
         s = str(self.steps[0])
         for step in self.steps[1:]:
@@ -235,8 +257,6 @@ class Path:
 
 class Dijkstra:
     def __init__(self, start, el_map):
-        print(el_map.target)
-
         self.start = start
         self.path_map = self.calculate_path_map(el_map)
 
@@ -300,9 +320,22 @@ def test():
     assert region_type(el_map[Location(1, 1)]) == TYPE_NARROW
     assert region_type(el_map[target]) == TYPE_ROCKY
 
-    print(el_map, el_map.risk_level())
+    print("Risk level on test map: {0}".format(el_map.risk_level()))
 
     assert el_map.risk_level() == 114
+
+    size = Location(target.x + 8, target.y + 8)
+    el_map = ErosionLevelMap(size, target, depth)
+
+    mouth = CavernLocation(Location(0, 0), ITEM_TORCH)
+
+    dijkstra = Dijkstra(mouth, el_map)
+
+    path = dijkstra.path(CavernLocation(target, ITEM_TORCH))
+
+    print("Fastest time on test map: {0}".format(path.cost))
+
+    return path.cost
 
 
 def first():
@@ -314,22 +347,16 @@ def first():
 
 
 def second():
-    depth = 510
-    target = Location(10, 10)
-    size = Location(target.x + 6, target.y + 6)
+    target = Location(*TARGET)
+    size = Location(target.x + 16, target.y + 16)
 
-    el_map = ErosionLevelMap(size, target, depth)
-    print(el_map)
+    el_map = ErosionLevelMap(size, target, DEPTH)
 
     mouth = CavernLocation(Location(0, 0), ITEM_TORCH)
 
     dijkstra = Dijkstra(mouth, el_map)
 
-    target = CavernLocation(target, ITEM_TORCH)
-
-    path = dijkstra.path(target)
-
-    print(path)
+    path = dijkstra.path(CavernLocation(target, ITEM_TORCH))
 
     return path.cost
 
@@ -337,4 +364,4 @@ def second():
 if __name__ == "__main__":
     test()
     print("Risk level of {0}: {1}".format(Location(10, 10), first()))
-    print("Bleerp: {0}".format(second()))
+    print("Time to travel to destination cavern location: {0}".format(second()))

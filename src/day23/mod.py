@@ -59,11 +59,17 @@ def first():
 
 def second():
     """
-    - Determine bounding box of all nanobots
-    - For each coordinate inside that box determine how many bots are in range, order descending
+    - Iterate all nanobots and construct a set with coordinates+counts that are in range
     - Keep the one closest to (0,0,0)
     """
-    pass
+    inp = get_input()
+    nanobots = [parse_nanobot_data(s) for s in inp]
+
+    x_min, x_max = min(nanobots, key=lambda nb: nb.x).x, max(nanobots, key=lambda nb: nb.x).x
+    y_min, y_max = min(nanobots, key=lambda nb: nb.y).y, max(nanobots, key=lambda nb: nb.y).y
+    z_min, z_max = min(nanobots, key=lambda nb: nb.z).z, max(nanobots, key=lambda nb: nb.z).z
+
+    print(x_min, x_max, y_min, y_max, z_min, z_max)
 
 
 if __name__ == "__main__":

@@ -111,32 +111,6 @@ def battle(immune_system, infection):
     return immune_system, infection
 
 
-def test():
-    """
-    Immune System:
-    17 units each with 5390 hit points (weak to radiation, bludgeoning) with an attack that does 4507 fire damage at initiative 2
-    989 units each with 1274 hit points (immune to fire; weak to bludgeoning,slashing) with an attack that does 25 slashing damage at initiative 3
-
-    Infection:
-    801 units each with 4706 hit points (weak to radiation) with an attack that does 116 bludgeoning damage at initiative 1
-    4485 units each with 2961 hit points (immune to radiation; weak to fire, cold) with an attack that does 12 slashing damage at initiative 4
-    """
-    immune_system = [
-        Group(IMMUNE_SYSTEM, "IS-1", 17, 5390, TYPE_FIRE, 4507, 2, [TYPE_RADIATION, TYPE_BLUDGEONING], []),
-        Group(IMMUNE_SYSTEM, "IS-2", 989, 1274, TYPE_SLASHING, 25, 3, [TYPE_BLUDGEONING, TYPE_SLASHING], [TYPE_FIRE])
-    ]
-
-    infection = [
-        Group(INFECTION, "IF-1", 801, 4706, TYPE_BLUDGEONING, 116, 1, [TYPE_RADIATION], []),
-        Group(INFECTION, "IF-1", 4485, 2961, TYPE_SLASHING, 12, 4, [TYPE_FIRE, TYPE_COLD], [TYPE_RADIATION])
-    ]
-
-    immune_system, infection = battle(immune_system, infection)
-
-    print("Immune system remaining : {0}, Infection remaining : {1}".format(
-        sum(g.count for g in immune_system), sum(g.count for g in infection)))
-
-
 def create_immune_system(boost=0):
     """
     4445 units each with 10125 hit points (immune to radiation) with an attack that does 20 cold damage at initiative 16
@@ -206,6 +180,32 @@ def create_infection():
         Group(INFECTION, "IF-09", 4874, 37620, TYPE_BLUDGEONING, 13, 1, weak=[TYPE_COLD], immune=[TYPE_BLUDGEONING]),
         Group(INFECTION, "IF-10", 4378, 32200, TYPE_BLUDGEONING, 10, 2, weak=[TYPE_COLD], immune=[]),
     ]
+
+
+def test():
+    """
+    Immune System:
+    17 units each with 5390 hit points (weak to radiation, bludgeoning) with an attack that does 4507 fire damage at initiative 2
+    989 units each with 1274 hit points (immune to fire; weak to bludgeoning,slashing) with an attack that does 25 slashing damage at initiative 3
+
+    Infection:
+    801 units each with 4706 hit points (weak to radiation) with an attack that does 116 bludgeoning damage at initiative 1
+    4485 units each with 2961 hit points (immune to radiation; weak to fire, cold) with an attack that does 12 slashing damage at initiative 4
+    """
+    immune_system = [
+        Group(IMMUNE_SYSTEM, "IS-1", 17, 5390, TYPE_FIRE, 4507, 2, [TYPE_RADIATION, TYPE_BLUDGEONING], []),
+        Group(IMMUNE_SYSTEM, "IS-2", 989, 1274, TYPE_SLASHING, 25, 3, [TYPE_BLUDGEONING, TYPE_SLASHING], [TYPE_FIRE])
+    ]
+
+    infection = [
+        Group(INFECTION, "IF-1", 801, 4706, TYPE_BLUDGEONING, 116, 1, [TYPE_RADIATION], []),
+        Group(INFECTION, "IF-1", 4485, 2961, TYPE_SLASHING, 12, 4, [TYPE_FIRE, TYPE_COLD], [TYPE_RADIATION])
+    ]
+
+    immune_system, infection = battle(immune_system, infection)
+
+    print("Immune system remaining : {0}, Infection remaining : {1}".format(
+        sum(g.count for g in immune_system), sum(g.count for g in infection)))
 
 
 def first():

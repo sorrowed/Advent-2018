@@ -9,7 +9,7 @@ TYPE_RADIATION = 4
 
 
 class Group:
-    def __init__(self, unit_type, name, count, hp, atk, damage, initiative, weak, immune):
+    def __init__(self, unit_type, name, count, hp, atk, damage, initiative, weak, immune, boost=0):
         self.name = name
 
         self.unit_type = unit_type
@@ -22,6 +22,7 @@ class Group:
         self.count = count
         self.unit_type = unit_type
         self.target = None
+        self.boost = boost
 
     def target_damage(self, target):
         """
@@ -37,17 +38,19 @@ class Group:
         return dmg
 
     def effective_power(self):
-        return self.count * self.damage
+        return self.count * (self.damage + self.boost)
 
     def attack(self, target):
 
-        if target is not None:
-            damage = self.target_damage(target)
-            casualties = min(int(damage / target.hp), target.count)
-            target.count -= casualties
+        if target is None:
+            return
 
-            print("{} attacks {} for {} damage killing {} units leaving {} alive".format(self.name, target.name, damage,
-                                                                                         casualties, target.count))
+        damage = self.target_damage(target)
+        casualties = min(int(damage / target.hp), target.count)
+        target.count -= casualties
+
+        print("{} attacks {} for {} damage killing {} units leaving {} alive".format(self.name, target.name, damage,
+                                                                                     casualties, target.count))
 
     def is_dead(self):
         return self.count <= 0
@@ -102,11 +105,8 @@ def battle(immune_system, infection):
                 group.attack(group.target)
 
         # Reduce groups to non-dead ones
-        groups = [group for group in groups if not group.is_dead()]
-
-        # Remove dead groups from camps
-        immune_system = [g for g in immune_system if g in groups]
-        infection = [g for g in infection if g in groups]
+        immune_system = [g for g in immune_system if not g.is_dead()]
+        infection = [g for g in infection if not g.is_dead()]
 
     return immune_system, infection
 
@@ -137,7 +137,7 @@ def test():
         sum(g.count for g in immune_system), sum(g.count for g in infection)))
 
 
-def create_immune_system():
+def create_immune_system(boost=0):
     """
     4445 units each with 10125 hit points (immune to radiation) with an attack that does 20 cold damage at initiative 16
     722 units each with 9484 hit points with an attack that does 130 bludgeoning damage at initiative 6
@@ -153,21 +153,24 @@ def create_immune_system():
     3091 units each with 6684 hit points (weak to radiation; immune to slashing) with an attack that does 17 cold damage at initiative 19
     """
     return [
-        Group(IMMUNE_SYSTEM, "IS-01", 4445, 10125, TYPE_COLD, 20, 16, weak=[], immune=[TYPE_RADIATION]),
-        Group(IMMUNE_SYSTEM, "IS-02", 722, 9484, TYPE_BLUDGEONING, 130, 6, weak=[], immune=[]),
-        Group(IMMUNE_SYSTEM, "IS-03", 1767, 5757, TYPE_RADIATION, 27, 4, weak=[TYPE_FIRE, TYPE_RADIATION], immune=[]),
+        Group(IMMUNE_SYSTEM, "IS-01", 4445, 10125, TYPE_COLD, 20, 16, weak=[], immune=[TYPE_RADIATION], boost=boost),
+        Group(IMMUNE_SYSTEM, "IS-02", 722, 9484, TYPE_BLUDGEONING, 130, 6, weak=[], immune=[], boost=boost),
+        Group(IMMUNE_SYSTEM, "IS-03", 1767, 5757, TYPE_RADIATION, 27, 4, weak=[TYPE_FIRE, TYPE_RADIATION], immune=[],
+              boost=boost),
         Group(IMMUNE_SYSTEM, "IS-04", 1472, 7155, TYPE_RADIATION, 42, 20, weak=[TYPE_SLASHING, TYPE_BLUDGEONING],
-              immune=[]),
+              immune=[], boost=boost),
 
-        Group(IMMUNE_SYSTEM, "IS-05", 2610, 5083, TYPE_FIRE, 14, 17, weak=[TYPE_SLASHING, TYPE_FIRE], immune=[]),
-        Group(IMMUNE_SYSTEM, "IS-06", 442, 1918, TYPE_FIRE, 35, 8, weak=[], immune=[]),
+        Group(IMMUNE_SYSTEM, "IS-05", 2610, 5083, TYPE_FIRE, 14, 17, weak=[TYPE_SLASHING, TYPE_FIRE], immune=[],
+              boost=boost),
+        Group(IMMUNE_SYSTEM, "IS-06", 442, 1918, TYPE_FIRE, 35, 8, weak=[], immune=[], boost=boost),
         Group(IMMUNE_SYSTEM, "IS-07", 2593, 1755, TYPE_SLASHING, 6, 13, weak=[],
-              immune=[TYPE_BLUDGEONING, TYPE_RADIATION, TYPE_FIRE]),
+              immune=[TYPE_BLUDGEONING, TYPE_RADIATION, TYPE_FIRE], boost=boost),
         Group(IMMUNE_SYSTEM, "IS-08", 6111, 1395, TYPE_SLASHING, 1, 14, weak=[TYPE_BLUDGEONING],
-              immune=[TYPE_RADIATION, TYPE_FIRE]),
+              immune=[TYPE_RADIATION, TYPE_FIRE], boost=boost),
 
-        Group(IMMUNE_SYSTEM, "IS-09", 231, 3038, TYPE_COLD, 128, 15, weak=[], immune=[TYPE_RADIATION]),
-        Group(IMMUNE_SYSTEM, "IS-10", 3091, 6684, TYPE_COLD, 17, 19, weak=[TYPE_RADIATION], immune=[TYPE_SLASHING]),
+        Group(IMMUNE_SYSTEM, "IS-09", 231, 3038, TYPE_COLD, 128, 15, weak=[], immune=[TYPE_RADIATION], boost=boost),
+        Group(IMMUNE_SYSTEM, "IS-10", 3091, 6684, TYPE_COLD, 17, 19, weak=[TYPE_RADIATION], immune=[TYPE_SLASHING],
+              boost=boost),
     ]
 
 
@@ -216,10 +219,21 @@ def first():
 
 
 def second():
-    pass
+    """
+    Started this one with 100 boost, then 50. Then 75 then 90. Battles below 82 boost end in a stalemate where
+    groups can't damage each other.
+
+    """
+    immune_system, infection = battle(create_immune_system(82), create_infection())
+
+    is_count, if_count = sum(g.count for g in immune_system), sum(g.count for g in infection)
+
+    print("Immune system remaining : {0}, Infection remaining : {1}".format(is_count, if_count))
+
+    return is_count if is_count > 0 else if_count
 
 
 if __name__ == "__main__":
     test()
     print("Number of units in winning army: {0}".format(first()))
-    # print("Bieb".format(second()))
+    print("Number of units in winning army when immune system is boosted: {0}".format(second()))
